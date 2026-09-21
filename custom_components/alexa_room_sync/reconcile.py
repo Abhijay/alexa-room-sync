@@ -30,6 +30,7 @@ class HARooms:
 
     areas: dict[str, str]
     objects: list[HAObject]
+    area_aliases: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -159,7 +160,8 @@ def reconcile(
         members = sorted(aid for aid, obj in matched.items() if obj.area_id == area_id)
         group = group_by_id.get(nxt.groups.get(area_id, ""))
         if group is None:
-            by_name = [g for g in groups_by_name.get(_norm(area_name), []) if g.id not in claimed]
+            names = [area_name, *rooms.area_aliases.get(area_id, [])]
+            by_name = [g for n in names for g in groups_by_name.get(_norm(n), []) if g.id not in claimed]
             if len(by_name) > 1:
                 raise AmbiguousMatchError(
                     f'Alexa has {len(by_name)} groups named "{area_name}"; merge them in the Alexa app first'
