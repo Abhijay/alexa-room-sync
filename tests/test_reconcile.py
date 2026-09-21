@@ -88,3 +88,18 @@ def test_does_not_touch_members_it_does_not_manage():
     create_bed, = [a for a in plan.actions if a.type == "create"]
     assert create_bed.appliance_ids == ["A2"]
     assert not [a for a in plan.actions if a.group_id == "G1"]
+
+
+def test_entity_alias_and_area_alias_match():
+    rooms = HARooms(
+        {"a1": "Lounge"},
+        [HAObject("entity", "light.x", "Big Lamp", "a1"), HAObject("entity", "light.x", "Floor Lamp", "a1")],
+        {"a1": ["Living Room"]},
+    )
+    endpoints = [AlexaEndpoint("app1", "Floor Lamp")]
+    groups = [AlexaGroup("g1", "Living Room", ["app1"])]
+    plan = reconcile(rooms, endpoints, groups, Mappings())
+    assert plan.matched["app1"].id == "light.x"
+    assert plan.mappings.groups["a1"] == "g1"
+    assert [a.type for a in plan.actions] == ["update"]
+    assert plan.actions[0].name == "Lounge"

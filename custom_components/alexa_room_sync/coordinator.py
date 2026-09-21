@@ -24,7 +24,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .reconcile import HAObject, HARooms, Mappings, Plan, reconcile
+from .reconcile import AlexaEndpoint, AlexaGroup, HAObject, HARooms, Mappings, Plan, reconcile
 
 REGISTRY_EVENTS = (
     ar.EVENT_AREA_REGISTRY_UPDATED,
@@ -37,7 +37,9 @@ type AlexaRoomSyncConfigEntry = ConfigEntry[AlexaRoomSync]
 
 def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     """Read areas, devices and entities the way Alexa will see them: by name."""
-    areas = {area.id: area.name for area in ar.async_get(hass).async_list_areas()}
+    area_entries = ar.async_get(hass).async_list_areas()
+    areas = {area.id: area.name for area in area_entries}
+    area_aliases = {area.id: sorted(area.aliases) for area in area_entries if area.aliases}
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     objects: list[HAObject] = []
@@ -51,7 +53,8 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
         if not name:
             continue
         area_id = entry.area_id or (device.area_id if device else None)
-        objects.append(HAObject("entity", entry.entity_id, name, area_id))
+        for alias in (name, *entry.aliases):
+            objects.append(HAObject("entity", entry.entity_id, alias, area_id))
 
     # Iterating yields entries since 2026.9; older releases yield ids.
     devices = [d for d in device_registry.devices if isinstance(d, dr.DeviceEntry)] or list(device_registry.devices.values())
@@ -62,7 +65,7 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
         if name:
             objects.append(HAObject("device", device.id, name, device.area_id))
 
-    return HARooms(areas, objects)
+    return HARooms(areas, objects, area_aliases)
 
 
 def _alexa_api(hass: HomeAssistant) -> Any:
@@ -87,6 +90,9 @@ class AlexaRoomSync:
         self.dry_run = True
         self.status = "idle"
         self.last_plan: Plan | None = None
+        self.last_rooms: HARooms | None = None
+        self.last_endpoints: list[AlexaEndpoint] = []
+        self.last_groups: list[AlexaGroup] = []
         self.last_error: str | None = None
         self.last_run: str | None = None
         self._listeners: list[CALLBACK_TYPE] = []
@@ -151,7 +157,8 @@ class AlexaRoomSync:
             step = "reading Alexa rooms"
             groups = await client.groups()
             step = "planning"
-            plan = reconcile(snapshot_rooms(self.hass), endpoints, groups, self.mappings)
+            rooms = snapshot_rooms(self.hass)
+            plan = reconcile(rooms, endpoints, groups, self.mappings)
         except Exception as err:  # noqa: BLE001 - any failure must surface on the sensor, never crash HA
             self.status = "error"
             self.last_error = f"{step}: {err!r}"
@@ -160,6 +167,9 @@ class AlexaRoomSync:
             return
 
         self.last_plan = plan
+        self.last_rooms = rooms
+        self.last_endpoints = endpoints
+        self.last_groups = groups
         self.last_error = None
         for warning in plan.warnings:
             LOGGER.warning("%s", warning)
@@ -204,3 +214,45 @@ class AlexaRoomSync:
             }
         )
         return attrs
+
+    def overview(self) -> dict[str, Any]:
+        """Everything the panel shows: each HA area beside its Alexa room, plus what matched nothing."""
+        base = {"status": self.status, "dry_run": self.dry_run, "last_run": self.last_run, "last_error": self.last_error}
+        plan, rooms = self.last_plan, self.last_rooms
+        if plan is None or rooms is None:
+            return {**base, "areas": [], "unmatched": [], "unmatched_echos": []}
+        endpoint_name = {e.appliance_id: e.name for e in self.last_endpoints}
+        group_by_id = {g.id: g for g in self.last_groups}
+        action_by_area = {a.area_id: a for a in plan.actions}
+        areas = []
+        for area_id, area_name in rooms.areas.items():
+            group = group_by_id.get(plan.mappings.groups.get(area_id, ""))
+            action = action_by_area.get(area_id)
+            members = [
+                {"ha_name": obj.name, "ha_id": obj.id, "alexa_name": endpoint_name.get(aid, aid)}
+                for aid, obj in plan.matched.items()
+                if obj.area_id == area_id
+            ]
+            if action:
+                state = action.type
+            elif group is not None:
+                state = "in_sync"
+            else:
+                state = "no_devices"
+            areas.append(
+                {
+                    "area_id": area_id,
+                    "name": area_name,
+                    "aliases": rooms.area_aliases.get(area_id, []),
+                    "alexa_group": group.name if group else None,
+                    "state": state,
+                    "members": sorted(members, key=lambda m: m["ha_name"].lower()),
+                    "unmanaged": [endpoint_name.get(aid, aid) for aid in (group.appliance_ids if group else []) if aid not in plan.matched],
+                }
+            )
+        return {
+            **base,
+            "areas": sorted(areas, key=lambda a: a["name"].lower()),
+            "unmatched": sorted(e.name for e in plan.unmatched if not e.is_echo),
+            "unmatched_echos": sorted(e.name for e in plan.unmatched if e.is_echo),
+        }

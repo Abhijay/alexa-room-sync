@@ -13,8 +13,10 @@ Assistant. Alexa follows.
 
 - Reads your areas, devices and entities from Home Assistant's registries.
 - Reads Alexa's smart-home device inventory and existing rooms.
-- Matches Alexa devices to Home Assistant devices or entities by name, once.
-  After that they are tracked by ID, so renaming either side is safe.
+- Matches Alexa devices to Home Assistant devices or entities by name or
+  alias, once. After that they are tracked by ID, so renaming either side is
+  safe. Area aliases let an existing Alexa room be adopted under a different
+  name; the room then takes the area's name.
 - Creates a room per area, renames rooms when areas are renamed, and moves
   devices between rooms when you move them between areas.
 - Runs a few seconds after any registry change, and hourly as a fallback.
@@ -47,16 +49,25 @@ Assistant, and add it:
 
 ## Use
 
-The integration adds one service device with three entities:
+An **Alexa Rooms** panel appears in the sidebar. It lists every area with the
+Alexa room it maps to, each matched Home Assistant and Alexa device side by
+side, and the Alexa devices that matched nothing. Sync now and the dry-run
+toggle live there too.
+
+The same information is available as entities on one service device, for
+automations and dashboards:
 
 | Entity | Purpose |
 | --- | --- |
 | `switch.alexa_room_sync_dry_run` | On by default. Plans are computed and shown but nothing is written to Alexa. Turn it off to apply. |
 | `button.alexa_room_sync_sync_now` | Run a pass immediately. |
-| `sensor.alexa_room_sync_status` | `in_sync`, `dry_run`, `applied` or `error`. Attributes list the planned actions, warnings, and Alexa devices with no Home Assistant match. |
+| `sensor.alexa_room_sync_status` | `in_sync`, `dry_run`, `applied` or `error`. Attributes hold the full plan. |
+| `sensor.alexa_room_sync_pending_changes` | Number of Alexa writes the last plan wants, each spelled out in the `changes` attribute. |
+| `sensor.alexa_room_sync_unmatched_alexa_devices` | Alexa devices with no same-named object in Home Assistant, Echos listed separately. |
+| `sensor.alexa_room_sync_last_run` | Timestamp of the last pass, with the error text if it failed. |
 
-Start in dry run. Check the sensor's `actions` attribute, fix any names that
-did not match, then turn the switch off.
+Start in dry run. Open the panel, fix any names that did not match (rename in
+Alexa, or add an alias in Home Assistant), then turn dry run off.
 
 ## How it talks to Alexa
 
