@@ -1,5 +1,8 @@
 # Alexa Room Sync
 
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Abhijay&repository=alexa-room-sync&category=integration)
+[![Validate](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml/badge.svg)](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml)
+
 A Home Assistant custom integration that makes your Alexa rooms a generated copy
 of your Home Assistant areas. You organise devices into areas once, in Home
 Assistant. Alexa follows.
@@ -34,9 +37,11 @@ that room in Alexa.
 
 ## Install
 
-1. In HACS, add this repository as a custom repository of type Integration.
-2. Install **Alexa Room Sync** and restart Home Assistant.
-3. Settings, Devices & services, Add integration, **Alexa Room Sync**.
+Click the HACS badge above, or in HACS add this repository as a custom
+repository of type Integration. Then install **Alexa Room Sync**, restart Home
+Assistant, and add it:
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=alexa_room_sync)
 
 ## Use
 
