@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
@@ -115,6 +116,17 @@ class AlexaRoomSync:
         self._unsubs.append(
             async_track_time_interval(self.hass, self._on_interval, timedelta(minutes=FALLBACK_INTERVAL_MINUTES))
         )
+        # Friendly names come from entity states, which only exist once startup finishes.
+        if self.hass.is_running:
+            self._schedule_initial_run()
+        else:
+            self._unsubs.append(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._on_started))
+
+    @callback
+    def _on_started(self, _event: Event) -> None:
+        self._schedule_initial_run()
+
+    def _schedule_initial_run(self) -> None:
         self.entry.async_create_background_task(self.hass, self.run(), "alexa_room_sync initial run")
 
     async def stop(self) -> None:
