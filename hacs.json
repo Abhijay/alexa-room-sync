@@ -1,0 +1,5 @@
+{
+  "name": "Alexa Room Sync",
+  "render_readme": true,
+  "homeassistant": "2025.9.0"
+}

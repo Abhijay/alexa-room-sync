@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Alexa Room Sync",
+        "description": "Alexa rooms will be generated from your Home Assistant areas using the Amazon account already signed in through the Alexa Devices integration. Sync starts in dry-run mode."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured. Only a single configuration is possible.",
+      "no_alexa_devices": "Set up the Alexa Devices integration first; this integration reuses its Amazon session."
+    }
+  },
+  "entity": {
+    "button": {
+      "sync_now": { "name": "Sync now" }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "idle": "Idle",
+          "in_sync": "In sync",
+          "dry_run": "Dry run (changes pending)",
+          "applied": "Applied",
+          "error": "Error"
+        }
+      }
+    },
+    "switch": {
+      "dry_run": { "name": "Dry run" }
+    }
+  }
+}

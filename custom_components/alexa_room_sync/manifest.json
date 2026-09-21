@@ -1,0 +1,14 @@
+{
+  "domain": "alexa_room_sync",
+  "name": "Alexa Room Sync",
+  "codeowners": ["@Abhijay"],
+  "config_flow": true,
+  "dependencies": ["alexa_devices"],
+  "documentation": "https://github.com/Abhijay/alexa-room-sync",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/Abhijay/alexa-room-sync/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
