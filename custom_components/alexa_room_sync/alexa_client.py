@@ -11,6 +11,7 @@ from .reconcile import AlexaEndpoint, AlexaGroup
 URI_GROUPS = "api/phoenix/group"
 URI_GRAPHQL = "nexus/v1/graphql"
 ECHO_CATEGORIES = {"ALEXA_VOICE_ENABLED"}
+APP_USER_AGENT = "AmazonWebView/AmazonAlexa/2.2.663733.0/iOS/18.5/iPhone"
 
 ENDPOINTS_QUERY = """query Endpoints {
   endpoints {
@@ -38,9 +39,20 @@ class AlexaGroupClient:
     def _url(self, path: str) -> URL:
         return URL.joinpath(self._state.alexa_website_url, path)
 
-    async def _json(self, method: str, path: str, payload: Any = None) -> Any:
-        _, resp = await self._http.session_request(method, self._url(path), input_data=payload, json_data=True)
+    async def _get(self, path: str) -> Any:
+        _, resp = await self._http.session_request("GET", self._url(path))
         return await self._http.response_to_json(resp, path)
+
+    # The nexus GraphQL endpoint only answers to the Alexa app user agent.
+    async def _graphql(self, operation: str, query: str) -> Any:
+        _, resp = await self._http.session_request(
+            "POST",
+            self._url(URI_GRAPHQL),
+            input_data={"operationName": operation, "query": query},
+            json_data=True,
+            extended_headers={"User-Agent": APP_USER_AGENT},
+        )
+        return await self._http.response_to_json(resp, operation)
 
     # Group writes come back 200 with an empty or non-JSON body; only the status matters.
     async def _write(self, method: str, path: str, payload: Any) -> Any:
@@ -52,7 +64,7 @@ class AlexaGroupClient:
 
     async def endpoints(self) -> list[AlexaEndpoint]:
         """Every smart-home endpoint Alexa knows about."""
-        data = await self._json("POST", URI_GRAPHQL, {"query": ENDPOINTS_QUERY})
+        data = await self._graphql("Endpoints", ENDPOINTS_QUERY)
         items = data.get("data", {}).get("endpoints", {}).get("items")
         if not isinstance(items, list):
             raise UnexpectedResponseError(f"Unexpected endpoints response: {str(data)[:300]}")
@@ -75,7 +87,7 @@ class AlexaGroupClient:
 
     async def raw_groups(self) -> Any:
         """The untouched group response, for diagnostics."""
-        return await self._json("GET", URI_GROUPS)
+        return await self._get(URI_GROUPS)
 
     async def groups(self) -> list[AlexaGroup]:
         """Alexa rooms and device groups."""
