@@ -13,7 +13,9 @@
   },
   "entity": {
     "button": {
-      "sync_now": { "name": "Sync now" }
+      "sync_now": {
+        "name": "Sync now"
+      }
     },
     "sensor": {
       "status": {
@@ -25,10 +27,21 @@
           "applied": "Applied",
           "error": "Error"
         }
+      },
+      "pending_changes": {
+        "name": "Pending changes"
+      },
+      "unmatched_devices": {
+        "name": "Unmatched Alexa devices"
+      },
+      "last_run": {
+        "name": "Last run"
       }
     },
     "switch": {
-      "dry_run": { "name": "Dry run" }
+      "dry_run": {
+        "name": "Dry run"
+      }
     }
   }
 }
