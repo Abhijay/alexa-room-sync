@@ -1,7 +1,9 @@
+[![Validate](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml/badge.svg)](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml)
+
 # Alexa Room Sync
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Abhijay&repository=alexa-room-sync&category=integration)
-[![Validate](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml/badge.svg)](https://github.com/Abhijay/alexa-room-sync/actions/workflows/validate.yml)
+
 
 A Home Assistant custom integration that makes your Alexa rooms a generated copy
 of your Home Assistant areas. You organise devices into areas once, in Home
