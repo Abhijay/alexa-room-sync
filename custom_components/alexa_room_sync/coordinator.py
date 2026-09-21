@@ -264,7 +264,11 @@ class AlexaRoomSync:
                     "alexa_group": group.name if group else None,
                     "state": state,
                     "members": sorted(members, key=lambda m: m["ha_name"].lower()),
-                    "unmanaged": [endpoint_name.get(aid, aid) for aid in (group.appliance_ids if group else []) if aid not in plan.matched],
+                    "unmanaged": [
+                        endpoint_name.get(aid, "unknown device")
+                        for aid in (group.appliance_ids if group else [])
+                        if aid not in plan.matched
+                    ],
                 }
             )
         return {
