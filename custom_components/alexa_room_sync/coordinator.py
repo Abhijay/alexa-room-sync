@@ -35,6 +35,10 @@ REGISTRY_EVENTS = (
 type AlexaRoomSyncConfigEntry = ConfigEntry[AlexaRoomSync]
 
 
+def _text(*candidates: Any) -> str | None:
+    return next((c for c in candidates if isinstance(c, str) and c), None)
+
+
 def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     """Read areas, devices and entities the way Alexa will see them: by name."""
     area_entries = ar.async_get(hass).async_list_areas()
@@ -49,11 +53,12 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
             continue
         device = device_registry.async_get(entry.device_id) if entry.device_id else None
         state = hass.states.get(entry.entity_id)
-        name = (state and state.attributes.get("friendly_name")) or entry.name or entry.original_name
+        # Registry names can be a computed-name sentinel rather than text on recent releases.
+        name = _text(state and state.attributes.get("friendly_name"), entry.name, entry.original_name)
         if not name:
             continue
         area_id = entry.area_id or (device.area_id if device else None)
-        for alias in (name, *entry.aliases):
+        for alias in (name, *(a for a in entry.aliases if isinstance(a, str))):
             objects.append(HAObject("entity", entry.entity_id, alias, area_id))
 
     # Iterating yields entries since 2026.9; older releases yield ids.
@@ -61,7 +66,7 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     for device in devices:
         if device.disabled_by:
             continue
-        name = device.name_by_user or device.name
+        name = _text(device.name_by_user, device.name)
         if name:
             objects.append(HAObject("device", device.id, name, device.area_id))
 
