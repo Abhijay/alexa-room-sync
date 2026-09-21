@@ -142,13 +142,17 @@ class AlexaRoomSync:
         """One reconcile pass. Any failure leaves Alexa untouched."""
         self.last_run = dt_util.utcnow().isoformat()
         try:
+            step = "connecting to the Alexa Devices session"
             client = AlexaGroupClient(_alexa_api(self.hass))
+            step = "reading Alexa devices"
             endpoints = await client.endpoints()
+            step = "reading Alexa rooms"
             groups = await client.groups()
+            step = "planning"
             plan = reconcile(snapshot_rooms(self.hass), endpoints, groups, self.mappings)
         except Exception as err:  # noqa: BLE001 - any failure must surface on the sensor, never crash HA
             self.status = "error"
-            self.last_error = str(err)
+            self.last_error = f"{step}: {err!r}"
             LOGGER.warning("Alexa room sync skipped, nothing written: %s", err)
             self._notify()
             return
