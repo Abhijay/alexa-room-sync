@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from aioamazondevices.api import AmazonEchoApi
 from yarl import URL
 
 from .reconcile import AlexaEndpoint, AlexaGroup
@@ -31,7 +30,7 @@ class UnexpectedResponseError(Exception):
 class AlexaGroupClient:
     """Read inventory and write groups using an already authenticated AmazonEchoApi."""
 
-    def __init__(self, api: AmazonEchoApi) -> None:
+    def __init__(self, api: Any) -> None:
         """Borrow the http wrapper and session state from the Alexa Devices API object."""
         self._http = api._http_wrapper  # noqa: SLF001
         self._state = api._session_state_data  # noqa: SLF001

@@ -6,8 +6,6 @@ from dataclasses import asdict
 from datetime import timedelta
 from typing import Any
 
-from aioamazondevices.exceptions import AmazonError
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -17,7 +15,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .alexa_client import AlexaGroupClient, UnexpectedResponseError
+from .alexa_client import AlexaGroupClient
 from .const import (
     ALEXA_DEVICES_DOMAIN,
     DEBOUNCE_SECONDS,
@@ -26,15 +24,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .reconcile import (
-    AmbiguousMatchError,
-    EmptyInventoryError,
-    HAObject,
-    HARooms,
-    Mappings,
-    Plan,
-    reconcile,
-)
+from .reconcile import HAObject, HARooms, Mappings, Plan, reconcile
 
 REGISTRY_EVENTS = (
     ar.EVENT_AREA_REGISTRY_UPDATED,
@@ -156,7 +146,7 @@ class AlexaRoomSync:
             endpoints = await client.endpoints()
             groups = await client.groups()
             plan = reconcile(snapshot_rooms(self.hass), endpoints, groups, self.mappings)
-        except (AmbiguousMatchError, EmptyInventoryError, UnexpectedResponseError, AmazonError, ConfigEntryNotReady, ValueError) as err:
+        except Exception as err:  # noqa: BLE001 - any failure must surface on the sensor, never crash HA
             self.status = "error"
             self.last_error = str(err)
             LOGGER.warning("Alexa room sync skipped, nothing written: %s", err)
@@ -182,7 +172,7 @@ class AlexaRoomSync:
                 else:
                     await client.update_group(action.group_id, action.name, action.appliance_ids)
                 LOGGER.info("Alexa room %s: %s", action.type, action.name)
-        except (AmazonError, ValueError) as err:
+        except Exception as err:  # noqa: BLE001
             self.status = "error"
             self.last_error = f"Write failed at {action.name}: {err}"
             LOGGER.error("Alexa room sync write failed: %s", err)
