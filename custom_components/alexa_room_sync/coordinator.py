@@ -53,7 +53,9 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
         area_id = entry.area_id or (device.area_id if device else None)
         objects.append(HAObject("entity", entry.entity_id, name, area_id))
 
-    for device in device_registry.devices.values():
+    # Iterating yields entries since 2026.9; older releases yield ids.
+    devices = [d for d in device_registry.devices if isinstance(d, dr.DeviceEntry)] or list(device_registry.devices.values())
+    for device in devices:
         if device.disabled_by:
             continue
         name = device.name_by_user or device.name
