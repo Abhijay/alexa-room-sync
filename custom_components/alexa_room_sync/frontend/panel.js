@@ -25,6 +25,7 @@ const STYLE = `
   tr:last-child td { border-bottom: 0; }
   .same { color: var(--secondary-text-color); }
   ul { margin: 6px 0 0; padding-left: 18px; }
+  .section { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); margin: 24px 0 8px; }
 `;
 
 class AlexaRoomSyncPanel extends HTMLElement {
@@ -87,6 +88,17 @@ class AlexaRoomSyncPanel extends HTMLElement {
         ${unmanaged}
       </div>`;
     };
+    const floorCard = (f) => {
+      const unmanaged = f.unmanaged.length
+        ? `<div class="muted">Also in this Alexa group, not managed by Home Assistant: ${f.unmanaged.map(esc).join(", ")}</div>`
+        : "";
+      const target = f.alexa_group && f.alexa_group !== f.name ? `<span class="muted">→ Alexa "${esc(f.alexa_group)}"</span>` : "";
+      return `<div class="card">
+        <h2>${esc(f.name)} ${target} <span class="badge ${f.state}">${STATE_LABEL[f.state] || esc(f.state)}</span></h2>
+        <div class="muted">${f.areas.length ? `${f.areas.map(esc).join(", ")} · ${f.member_count} matched device(s)` : "No areas on this floor."}</div>
+        ${unmanaged}
+      </div>`;
+    };
     const list = (title, items, hint) =>
       items.length
         ? `<div class="card"><h2>${title} <span class="badge">${items.length}</span></h2><div class="muted">${hint}</div><ul>${items.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>`
@@ -102,6 +114,7 @@ class AlexaRoomSyncPanel extends HTMLElement {
       </div>
       ${this._error ? `<div class="card error-text">${esc(this._error)}</div>` : ""}
       ${d && d.last_error ? `<div class="card"><h2>Last run failed</h2><div class="error-text">${esc(d.last_error)}</div></div>` : ""}
+      ${d && d.floors.length ? `<h3 class="section">Floors</h3>${d.floors.map(floorCard).join("")}<h3 class="section">Areas</h3>` : ""}
       ${d ? d.areas.map(areaCard).join("") : `<div class="card muted">Loading…</div>`}
       ${d ? list("Alexa devices with no match in Home Assistant", d.unmatched, "Rename them in Alexa, or add an alias in Home Assistant with the Alexa name.") : ""}
       ${d ? list("Echo devices with no match", d.unmatched_echos, "Echos only join a room when a Home Assistant device or entity carries the same name or alias.") : ""}
