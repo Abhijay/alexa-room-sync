@@ -139,3 +139,9 @@ def test_home_group_holds_every_matched_device():
     assert home.type == "update"
     assert home.appliance_ids == ["d", "k", "z"]
     assert plan.mappings.groups[HOME_KEY] == "g"
+
+
+def test_curly_apostrophe_counts_as_same_name():
+    rooms = HARooms({"a1": "Abhijay's bedroom"}, [HAObject("entity", "light.w", "Wall", "a1")])
+    plan = reconcile(rooms, [AlexaEndpoint("w", "Wall")], [AlexaGroup("g", "Abhijay\u2019s bedroom", ["w"])], Mappings())
+    assert plan.actions == []
