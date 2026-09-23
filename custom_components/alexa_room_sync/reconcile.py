@@ -111,8 +111,11 @@ class Plan:
     mappings: Mappings
 
 
+_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+
+
 def _norm(name: str) -> str:
-    return " ".join(name.strip().lower().split())
+    return " ".join(name.translate(_QUOTES).strip().lower().split())
 
 
 def reconcile(
@@ -187,7 +190,8 @@ def reconcile(
             return
         preserved = [aid for aid in group.appliance_ids if aid not in managed]
         desired = sorted(set(preserved) | set(members))
-        if group.name == name and desired == sorted(group.appliance_ids):
+        # Alexa stores curly apostrophes, so an exact name compare would rewrite every run.
+        if _norm(group.name) == _norm(name) and desired == sorted(group.appliance_ids):
             return
         actions.append(
             Action(
