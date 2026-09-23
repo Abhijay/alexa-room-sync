@@ -6,6 +6,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "custom_components" / "alexa_room_sync"))
 
 from reconcile import (  # noqa: E402
+    HOME_KEY,
     floor_key,
     Action,
     AlexaEndpoint,
@@ -124,3 +125,17 @@ def test_floor_groups_union_their_areas():
     assert floor.name == "Common Spaces"
     assert floor.appliance_ids == ["d", "k"]
     assert len(plan.actions) == 4
+
+
+def test_home_group_holds_every_matched_device():
+    rooms = HARooms(
+        {"a1": "Kitchen", "a2": "Den"},
+        [HAObject("entity", "light.k", "K Light", "a1"), HAObject("entity", "light.d", "D Light", "a2")],
+        home_name="5 E 17th",
+    )
+    endpoints = [AlexaEndpoint("k", "K Light"), AlexaEndpoint("d", "D Light"), AlexaEndpoint("x", "Nowhere")]
+    plan = reconcile(rooms, endpoints, [AlexaGroup("g", "5 E 17th", ["k", "z"])], Mappings())
+    home = next(a for a in plan.actions if a.area_id == HOME_KEY)
+    assert home.type == "update"
+    assert home.appliance_ids == ["d", "k", "z"]
+    assert plan.mappings.groups[HOME_KEY] == "g"

@@ -34,6 +34,7 @@ class HARooms:
     floors: dict[str, str] = field(default_factory=dict)
     floor_aliases: dict[str, list[str]] = field(default_factory=dict)
     area_floor: dict[str, str] = field(default_factory=dict)
+    home_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -60,7 +61,7 @@ class Mappings:
     """Identity links between the two systems. Never decides membership."""
 
     appliances: dict[str, dict[str, str]] = field(default_factory=dict)
-    groups: dict[str, str] = field(default_factory=dict)  # keyed by area id, or "floor:<floor id>"
+    groups: dict[str, str] = field(default_factory=dict)  # keyed by area id, "floor:<floor id>", or "home"
 
     def copy(self) -> Mappings:
         """Return a deep-enough copy for a new plan."""
@@ -78,6 +79,7 @@ class Mappings:
 
 
 FLOOR_PREFIX = "floor:"
+HOME_KEY = "home"
 
 
 def floor_key(floor_id: str) -> str:
@@ -207,12 +209,16 @@ def reconcile(
     for floor_id, floor_name in rooms.floors.items():
         members = sorted({aid for area_id, fid in rooms.area_floor.items() if fid == floor_id for aid in area_members.get(area_id, [])})
         plan_group(floor_key(floor_id), floor_name, rooms.floor_aliases.get(floor_id, []), members)
+    if rooms.home_name:
+        plan_group(HOME_KEY, rooms.home_name, [], sorted(matched))
 
     live_keys = set(rooms.areas) | {floor_key(f) for f in rooms.floors}
+    if rooms.home_name:
+        live_keys.add(HOME_KEY)
     for key, group_id in list(nxt.groups.items()):
         if key in live_keys:
             continue
-        kind = "floor" if key.startswith(FLOOR_PREFIX) else "area"
+        kind = "home" if key == HOME_KEY else "floor" if key.startswith(FLOOR_PREFIX) else "area"
         group = group_by_id.get(group_id)
         if group is None:
             warnings.append(f"Mapping for deleted {kind} {key} points at a group Alexa no longer has; dropping it")

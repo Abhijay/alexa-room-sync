@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er, floor_registry as fr
@@ -25,9 +25,10 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .reconcile import AlexaEndpoint, AlexaGroup, HAObject, HARooms, Mappings, Plan, floor_key, reconcile
+from .reconcile import HOME_KEY, AlexaEndpoint, AlexaGroup, HAObject, HARooms, Mappings, Plan, floor_key, reconcile
 
 REGISTRY_EVENTS = (
+    EVENT_CORE_CONFIG_UPDATE,
     ar.EVENT_AREA_REGISTRY_UPDATED,
     fr.EVENT_FLOOR_REGISTRY_UPDATED,
     dr.EVENT_DEVICE_REGISTRY_UPDATED,
@@ -76,7 +77,7 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
         if name:
             objects.append(HAObject("device", device.id, name, device.area_id))
 
-    return HARooms(areas, objects, area_aliases, floors, floor_aliases, area_floor)
+    return HARooms(areas, objects, area_aliases, floors, floor_aliases, area_floor, hass.config.location_name or None)
 
 
 def _alexa_api(hass: HomeAssistant) -> Any:
@@ -242,7 +243,7 @@ class AlexaRoomSync:
         base = {"status": self.status, "dry_run": self.dry_run, "last_run": self.last_run, "last_error": self.last_error}
         plan, rooms = self.last_plan, self.last_rooms
         if plan is None or rooms is None:
-            return {**base, "floors": [], "areas": [], "unmatched": [], "unmatched_echos": []}
+            return {**base, "home": None, "floors": [], "areas": [], "unmatched": [], "unmatched_echos": []}
         endpoint_name = {e.appliance_id: e.name for e in self.last_endpoints}
         group_by_id = {g.id: g for g in self.last_groups}
         action_by_area = {a.area_id: a for a in plan.actions}
@@ -299,8 +300,24 @@ class AlexaRoomSync:
                     ],
                 }
             )
+        home = None
+        if rooms.home_name:
+            group = group_by_id.get(plan.mappings.groups.get(HOME_KEY, ""))
+            action = action_by_area.get(HOME_KEY)
+            home = {
+                "name": rooms.home_name,
+                "alexa_group": group.name if group else None,
+                "state": action.type if action else "in_sync" if group else "no_devices",
+                "member_count": len(plan.matched),
+                "unmanaged": [
+                    endpoint_name.get(aid, "unknown device")
+                    for aid in (group.appliance_ids if group else [])
+                    if aid not in plan.matched
+                ],
+            }
         return {
             **base,
+            "home": home,
             "floors": sorted(floors, key=lambda f: f["name"].lower()),
             "areas": sorted(areas, key=lambda a: a["name"].lower()),
             "unmatched": sorted(e.name for e in plan.unmatched if not e.is_echo),
