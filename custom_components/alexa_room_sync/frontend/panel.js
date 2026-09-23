@@ -90,6 +90,17 @@ class AlexaRoomSyncPanel extends HTMLElement {
         ${unmanaged}
       </div>`;
     };
+    const homeCard = (h) => {
+      const unmanaged = h.unmanaged.length
+        ? `<div class="muted">Also in this Alexa group, not managed by Home Assistant: ${h.unmanaged.map(esc).join(", ")}</div>`
+        : "";
+      const target = h.alexa_group && h.alexa_group !== h.name ? `<span class="muted">→ Alexa "${esc(h.alexa_group)}"</span>` : "";
+      return `<h3 class="section">Home</h3><div class="card">
+        <h2>${esc(h.name)} ${target} <span class="badge ${h.state}">${labels[h.state] || esc(h.state)}</span></h2>
+        <div class="muted">Every matched device · ${h.member_count} device(s). Rename under Settings → System → General.</div>
+        ${unmanaged}
+      </div>`;
+    };
     const floorCard = (f) => {
       const unmanaged = f.unmanaged.length
         ? `<div class="muted">Also in this Alexa group, not managed by Home Assistant: ${f.unmanaged.map(esc).join(", ")}</div>`
@@ -116,6 +127,7 @@ class AlexaRoomSyncPanel extends HTMLElement {
       </div>
       ${this._error ? `<div class="card error-text">${esc(this._error)}</div>` : ""}
       ${d && d.last_error ? `<div class="card"><h2>Last run failed</h2><div class="error-text">${esc(d.last_error)}</div></div>` : ""}
+      ${d && d.home ? homeCard(d.home) : ""}
       ${d && d.floors.length ? `<h3 class="section">Floors</h3>${d.floors.map(floorCard).join("")}<h3 class="section">Areas</h3>` : ""}
       ${d ? d.areas.map(areaCard).join("") : `<div class="card muted">Loading…</div>`}
       ${d ? list("Alexa devices with no match in Home Assistant", d.unmatched, "Rename them in Alexa, or add an alias in Home Assistant with the Alexa name.") : ""}

@@ -22,6 +22,9 @@ Assistant. Alexa follows.
 - Creates a group per floor holding every matched device from that floor's
   areas, so "turn off Common Spaces" works if that is what you called the floor.
   Alexa lets a device sit in many groups, so rooms and floors coexist.
+- Creates one group for the whole home, named after your Home Assistant
+  instance (Settings → System → General → Name), holding every matched device.
+  Alexa has no notion of a house, so this stands in for one.
 - Runs a few seconds after any registry change, and hourly as a fallback.
 
 It never deletes an Alexa room, and it never removes devices it did not match to
@@ -52,7 +55,7 @@ Assistant, and add it:
 
 ## Use
 
-An **Alexa Rooms** panel appears in the sidebar. It lists every floor and area
+An **Alexa Rooms** panel appears in the sidebar. It lists the home, every floor and area
 with the Alexa group it maps to, each matched Home Assistant and Alexa device side by
 side, and the Alexa devices that matched nothing. Sync now and the dry-run
 toggle live there too.
