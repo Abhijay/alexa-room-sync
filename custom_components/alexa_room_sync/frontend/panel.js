@@ -4,6 +4,7 @@ const STATE_LABEL = {
   update: "Will be updated",
   no_devices: "No Alexa devices matched",
 };
+const APPLIED_LABEL = { ...STATE_LABEL, create: "Created", update: "Updated" };
 
 const STYLE = `
   :host { display: block; padding: 16px; max-width: 1100px; margin: 0 auto; color: var(--primary-text-color); }
@@ -70,6 +71,7 @@ class AlexaRoomSyncPanel extends HTMLElement {
     const d = this._data;
     const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const dryRun = d && d.dry_run;
+    const labels = d && d.status === "applied" ? APPLIED_LABEL : STATE_LABEL;
     const statusClass = d ? (d.status === "error" ? "error" : d.status === "dry_run" ? "dry" : d.status) : "";
     const areaCard = (a) => {
       const rows = a.members
@@ -83,7 +85,7 @@ class AlexaRoomSyncPanel extends HTMLElement {
       const aliases = a.aliases.length ? `<span class="muted">also ${a.aliases.map(esc).join(", ")}</span>` : "";
       const target = a.alexa_group && a.alexa_group !== a.name ? `<span class="muted">→ Alexa "${esc(a.alexa_group)}"</span>` : "";
       return `<div class="card">
-        <h2>${esc(a.name)} ${aliases} ${target} <span class="badge ${a.state}">${STATE_LABEL[a.state] || esc(a.state)}</span></h2>
+        <h2>${esc(a.name)} ${aliases} ${target} <span class="badge ${a.state}">${labels[a.state] || esc(a.state)}</span></h2>
         ${rows ? `<table><tr><th>Home Assistant</th><th>Alexa</th></tr>${rows}</table>` : `<div class="muted">Name a device in Alexa the same as an entity or device in this area and it will appear here.</div>`}
         ${unmanaged}
       </div>`;
@@ -94,7 +96,7 @@ class AlexaRoomSyncPanel extends HTMLElement {
         : "";
       const target = f.alexa_group && f.alexa_group !== f.name ? `<span class="muted">→ Alexa "${esc(f.alexa_group)}"</span>` : "";
       return `<div class="card">
-        <h2>${esc(f.name)} ${target} <span class="badge ${f.state}">${STATE_LABEL[f.state] || esc(f.state)}</span></h2>
+        <h2>${esc(f.name)} ${target} <span class="badge ${f.state}">${labels[f.state] || esc(f.state)}</span></h2>
         <div class="muted">${f.areas.length ? `${f.areas.map(esc).join(", ")} · ${f.member_count} matched device(s)` : "No areas on this floor."}</div>
         ${unmanaged}
       </div>`;
