@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er, floor_registry as fr
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
@@ -25,10 +25,11 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .reconcile import AlexaEndpoint, AlexaGroup, HAObject, HARooms, Mappings, Plan, reconcile
+from .reconcile import AlexaEndpoint, AlexaGroup, HAObject, HARooms, Mappings, Plan, floor_key, reconcile
 
 REGISTRY_EVENTS = (
     ar.EVENT_AREA_REGISTRY_UPDATED,
+    fr.EVENT_FLOOR_REGISTRY_UPDATED,
     dr.EVENT_DEVICE_REGISTRY_UPDATED,
     er.EVENT_ENTITY_REGISTRY_UPDATED,
 )
@@ -45,6 +46,10 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     area_entries = ar.async_get(hass).async_list_areas()
     areas = {area.id: area.name for area in area_entries}
     area_aliases = {area.id: sorted(area.aliases) for area in area_entries if area.aliases}
+    area_floor = {area.id: area.floor_id for area in area_entries if area.floor_id}
+    floor_entries = fr.async_get(hass).async_list_floors()
+    floors = {floor.floor_id: floor.name for floor in floor_entries}
+    floor_aliases = {floor.floor_id: sorted(floor.aliases) for floor in floor_entries if floor.aliases}
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     objects: list[HAObject] = []
@@ -71,7 +76,7 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
         if name:
             objects.append(HAObject("device", device.id, name, device.area_id))
 
-    return HARooms(areas, objects, area_aliases)
+    return HARooms(areas, objects, area_aliases, floors, floor_aliases, area_floor)
 
 
 def _alexa_api(hass: HomeAssistant) -> Any:
@@ -237,7 +242,7 @@ class AlexaRoomSync:
         base = {"status": self.status, "dry_run": self.dry_run, "last_run": self.last_run, "last_error": self.last_error}
         plan, rooms = self.last_plan, self.last_rooms
         if plan is None or rooms is None:
-            return {**base, "areas": [], "unmatched": [], "unmatched_echos": []}
+            return {**base, "floors": [], "areas": [], "unmatched": [], "unmatched_echos": []}
         endpoint_name = {e.appliance_id: e.name for e in self.last_endpoints}
         group_by_id = {g.id: g for g in self.last_groups}
         action_by_area = {a.area_id: a for a in plan.actions}
@@ -271,8 +276,32 @@ class AlexaRoomSync:
                     ],
                 }
             )
+        floors = []
+        for floor_id, floor_name in rooms.floors.items():
+            key = floor_key(floor_id)
+            group = group_by_id.get(plan.mappings.groups.get(key, ""))
+            action = action_by_area.get(key)
+            floor_areas = sorted(a["name"] for a in areas if rooms.area_floor.get(a["area_id"]) == floor_id)
+            member_count = sum(len(a["members"]) for a in areas if rooms.area_floor.get(a["area_id"]) == floor_id)
+            floors.append(
+                {
+                    "floor_id": floor_id,
+                    "name": floor_name,
+                    "aliases": rooms.floor_aliases.get(floor_id, []),
+                    "alexa_group": group.name if group else None,
+                    "state": action.type if action else "in_sync" if group else "no_devices",
+                    "areas": floor_areas,
+                    "member_count": member_count,
+                    "unmanaged": [
+                        endpoint_name.get(aid, "unknown device")
+                        for aid in (group.appliance_ids if group else [])
+                        if aid not in plan.matched
+                    ],
+                }
+            )
         return {
             **base,
+            "floors": sorted(floors, key=lambda f: f["name"].lower()),
             "areas": sorted(areas, key=lambda a: a["name"].lower()),
             "unmatched": sorted(e.name for e in plan.unmatched if not e.is_echo),
             "unmatched_echos": sorted(e.name for e in plan.unmatched if e.is_echo),

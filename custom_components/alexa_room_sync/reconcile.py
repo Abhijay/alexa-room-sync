@@ -31,6 +31,9 @@ class HARooms:
     areas: dict[str, str]
     objects: list[HAObject]
     area_aliases: dict[str, list[str]] = field(default_factory=dict)
+    floors: dict[str, str] = field(default_factory=dict)
+    floor_aliases: dict[str, list[str]] = field(default_factory=dict)
+    area_floor: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -57,7 +60,7 @@ class Mappings:
     """Identity links between the two systems. Never decides membership."""
 
     appliances: dict[str, dict[str, str]] = field(default_factory=dict)
-    groups: dict[str, str] = field(default_factory=dict)
+    groups: dict[str, str] = field(default_factory=dict)  # keyed by area id, or "floor:<floor id>"
 
     def copy(self) -> Mappings:
         """Return a deep-enough copy for a new plan."""
@@ -74,9 +77,17 @@ class Mappings:
         return cls(dict(data.get("appliances", {})), dict(data.get("groups", {})))
 
 
+FLOOR_PREFIX = "floor:"
+
+
+def floor_key(floor_id: str) -> str:
+    """Mapping key for a floor's group, kept apart from area ids."""
+    return f"{FLOOR_PREFIX}{floor_id}"
+
+
 @dataclass(frozen=True)
 class Action:
-    """One Alexa write."""
+    """One Alexa write. area_id is the area id or a floor key."""
 
     type: str
     area_id: str
@@ -156,35 +167,31 @@ def reconcile(
     warnings: list[str] = []
     claimed: set[str] = set()
 
-    for area_id, area_name in rooms.areas.items():
-        members = sorted(aid for aid, obj in matched.items() if obj.area_id == area_id)
-        group = group_by_id.get(nxt.groups.get(area_id, ""))
+    def plan_group(key: str, name: str, aliases: list[str], members: list[str]) -> None:
+        group = group_by_id.get(nxt.groups.get(key, ""))
         if group is None:
-            names = [area_name, *rooms.area_aliases.get(area_id, [])]
-            by_name = [g for n in names for g in groups_by_name.get(_norm(n), []) if g.id not in claimed]
+            by_name = [g for n in (name, *aliases) for g in groups_by_name.get(_norm(n), []) if g.id not in claimed]
             if len(by_name) > 1:
-                raise AmbiguousMatchError(
-                    f'Alexa has {len(by_name)} groups named "{area_name}"; merge them in the Alexa app first'
-                )
+                raise AmbiguousMatchError(f'Alexa has {len(by_name)} groups named "{name}"; merge them in the Alexa app first')
             if by_name:
                 group = by_name[0]
-                nxt.groups[area_id] = group.id
+                nxt.groups[key] = group.id
         if group is not None:
             claimed.add(group.id)
 
         if group is None:
             if members:
-                actions.append(Action("create", area_id, area_name, members))
-            continue
+                actions.append(Action("create", key, name, members))
+            return
         preserved = [aid for aid in group.appliance_ids if aid not in managed]
         desired = sorted(set(preserved) | set(members))
-        if group.name == area_name and desired == sorted(group.appliance_ids):
-            continue
+        if group.name == name and desired == sorted(group.appliance_ids):
+            return
         actions.append(
             Action(
                 "update",
-                area_id,
-                area_name,
+                key,
+                name,
                 desired,
                 group_id=group.id,
                 previous_name=group.name,
@@ -192,14 +199,25 @@ def reconcile(
             )
         )
 
-    for area_id, group_id in list(nxt.groups.items()):
-        if area_id in rooms.areas:
+    area_members = {
+        area_id: sorted(aid for aid, obj in matched.items() if obj.area_id == area_id) for area_id in rooms.areas
+    }
+    for area_id, area_name in rooms.areas.items():
+        plan_group(area_id, area_name, rooms.area_aliases.get(area_id, []), area_members[area_id])
+    for floor_id, floor_name in rooms.floors.items():
+        members = sorted({aid for area_id, fid in rooms.area_floor.items() if fid == floor_id for aid in area_members.get(area_id, [])})
+        plan_group(floor_key(floor_id), floor_name, rooms.floor_aliases.get(floor_id, []), members)
+
+    live_keys = set(rooms.areas) | {floor_key(f) for f in rooms.floors}
+    for key, group_id in list(nxt.groups.items()):
+        if key in live_keys:
             continue
+        kind = "floor" if key.startswith(FLOOR_PREFIX) else "area"
         group = group_by_id.get(group_id)
         if group is None:
-            warnings.append(f"Mapping for deleted area {area_id} points at a group Alexa no longer has; dropping it")
-            del nxt.groups[area_id]
+            warnings.append(f"Mapping for deleted {kind} {key} points at a group Alexa no longer has; dropping it")
+            del nxt.groups[key]
         else:
-            warnings.append(f'HA area {area_id} was deleted; Alexa group "{group.name}" left in place for manual cleanup')
+            warnings.append(f'HA {kind} {key} was deleted; Alexa group "{group.name}" left in place for manual cleanup')
 
     return Plan(actions, warnings, unmatched, matched, nxt)
