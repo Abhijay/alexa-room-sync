@@ -7,6 +7,9 @@ LOGGER = logging.getLogger(__package__)
 
 ALEXA_DEVICES_DOMAIN = "alexa_devices"
 
+# Devices and entities carrying this label never join an Alexa room.
+IGNORE_LABEL = "no_alexa"
+
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
 
