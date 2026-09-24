@@ -17,6 +17,9 @@ Assistant. Alexa follows.
   alias, once. After that they are tracked by ID, so renaming either side is
   safe. Area aliases let an existing Alexa room be adopted under a different
   name; the room then takes the area's name.
+- Skips anything hidden or disabled, and anything labelled `no_alexa`. Put
+  that label on raw bulbs whose fixture group is what you actually talk to,
+  so Alexa rooms hold the fixtures and not the parts.
 - Creates a room per area, renames rooms when areas are renamed, and moves
   devices between rooms when you move them between areas.
 - Creates a group per floor holding every matched device from that floor's

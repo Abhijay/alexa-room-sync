@@ -21,6 +21,7 @@ from .const import (
     ALEXA_DEVICES_DOMAIN,
     DEBOUNCE_SECONDS,
     FALLBACK_INTERVAL_MINUTES,
+    IGNORE_LABEL,
     LOGGER,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -56,9 +57,11 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     objects: list[HAObject] = []
 
     for entry in entity_registry.entities.values():
-        if entry.disabled_by or entry.hidden_by:
+        if entry.disabled_by or entry.hidden_by or IGNORE_LABEL in entry.labels:
             continue
         device = device_registry.async_get(entry.device_id) if entry.device_id else None
+        if device and IGNORE_LABEL in device.labels:
+            continue
         state = hass.states.get(entry.entity_id)
         # Registry names can be a computed-name sentinel rather than text on recent releases.
         name = _text(state and state.attributes.get("friendly_name"), entry.name, entry.original_name)
@@ -71,7 +74,7 @@ def snapshot_rooms(hass: HomeAssistant) -> HARooms:
     # Iterating yields entries since 2026.9; older releases yield ids.
     devices = [d for d in device_registry.devices if isinstance(d, dr.DeviceEntry)] or list(device_registry.devices.values())
     for device in devices:
-        if device.disabled_by:
+        if device.disabled_by or IGNORE_LABEL in device.labels:
             continue
         name = _text(device.name_by_user, device.name)
         if name:
