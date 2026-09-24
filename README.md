@@ -30,9 +30,11 @@ Assistant. Alexa follows.
   Alexa has no notion of a house, so this stands in for one.
 - Runs a few seconds after any registry change, and hourly as a fallback.
 
-It never deletes an Alexa room, and it never removes devices it did not match to
-Home Assistant. Anything ambiguous, such as two devices with the same name in
-different areas, stops the whole run with nothing written.
+It never deletes an Alexa room, and it never removes devices it did not place
+in a room itself. A device it did place is taken back out once it stops
+matching, so labelling a bulb `no_alexa` clears it from its room on the next
+run. Anything ambiguous, such as two devices with the same name in different
+areas, stops the whole run with nothing written.
 
 Echo devices are included through the core
 [Alexa Devices](https://www.home-assistant.io/integrations/alexa_devices)

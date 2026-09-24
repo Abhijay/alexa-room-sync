@@ -162,7 +162,8 @@ def reconcile(
     if ambiguous:
         raise AmbiguousMatchError("Ambiguous name matches, fix in HA first:\n" + "\n".join(ambiguous))
 
-    managed = set(matched)
+    # Anything ever mapped was placed by us, so it leaves the room when it stops matching.
+    managed = set(matched) | set(nxt.appliances)
     group_by_id = {g.id: g for g in groups}
     groups_by_name: dict[str, list[AlexaGroup]] = {}
     for group in groups:

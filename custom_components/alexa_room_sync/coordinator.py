@@ -276,7 +276,7 @@ class AlexaRoomSync:
                     "unmanaged": [
                         endpoint_name.get(aid, "unknown device")
                         for aid in (group.appliance_ids if group else [])
-                        if aid not in plan.matched
+                        if aid not in plan.matched and aid not in plan.mappings.appliances
                     ],
                 }
             )
@@ -299,7 +299,7 @@ class AlexaRoomSync:
                     "unmanaged": [
                         endpoint_name.get(aid, "unknown device")
                         for aid in (group.appliance_ids if group else [])
-                        if aid not in plan.matched
+                        if aid not in plan.matched and aid not in plan.mappings.appliances
                     ],
                 }
             )
@@ -315,7 +315,7 @@ class AlexaRoomSync:
                 "unmanaged": [
                     endpoint_name.get(aid, "unknown device")
                     for aid in (group.appliance_ids if group else [])
-                    if aid not in plan.matched
+                    if aid not in plan.matched and aid not in plan.mappings.appliances
                 ],
             }
         return {
