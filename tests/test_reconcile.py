@@ -92,6 +92,15 @@ def test_does_not_touch_members_it_does_not_manage():
     assert not [a for a in plan.actions if a.group_id == "G1"]
 
 
+def test_removes_members_it_placed_once_they_stop_matching():
+    rooms = HARooms(AREAS, [HAObject("entity", "light.ceiling", "Ceiling", "living")])
+    endpoints = [AlexaEndpoint("A1", "Ceiling"), AlexaEndpoint("D1", "D1")]
+    groups = [AlexaGroup("G1", "Living Room", ["A1", "D1", "NATIVE"])]
+    mappings = Mappings({"A1": {"kind": "entity", "id": "light.ceiling"}, "D1": {"kind": "device", "id": "dev-d1"}}, {"living": "G1"})
+    plan = reconcile(rooms, endpoints, groups, mappings)
+    assert [(a.group_id, a.appliance_ids) for a in plan.actions] == [("G1", ["A1", "NATIVE"])]
+
+
 def test_entity_alias_and_area_alias_match():
     rooms = HARooms(
         {"a1": "Lounge"},
